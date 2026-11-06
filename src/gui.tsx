@@ -1,4 +1,4 @@
-import { Command, Plugin, Style, TitlebarItem } from "@opencode/plugin/gui";
+import { Command, Plugin, Slot, Style } from "@opencode/plugin/gui";
 import { onCleanup } from "solid-js";
 import { definition } from "./definition";
 import { Navigator } from "./navigator";
@@ -8,6 +8,7 @@ import css from "./styles.css?inline";
 export default Plugin.define({
   ...definition,
   setup(ctx) {
+    const ui = ctx.ui;
     const cache = new Map<string, Snapshot>();
     let close: (() => void) | undefined;
     const open = () => {
@@ -31,14 +32,20 @@ export default Plugin.define({
         run: open,
       }),
     );
-    ctx.add(
-      TitlebarItem,
-      (): TitlebarItem => ({
-        id: "open",
-        label: ctx.t("title"),
-        icon: "folder",
-        run: open,
-      }),
-    );
+    ctx.add(Slot, {
+      at: "session.header",
+      order: 30,
+      render: () => (
+        <ui.Tooltip value={ctx.t("command")} placement="bottom">
+          <ui.IconButton
+            icon="folder"
+            label={ctx.t("command")}
+            variant="ghost-muted"
+            size="large"
+            onClick={open}
+          />
+        </ui.Tooltip>
+      ),
+    });
   },
 });

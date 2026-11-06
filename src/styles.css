@@ -1,7 +1,7 @@
 /* Dialog chrome, inputs, buttons, tooltips and keybinds are supplied by the host. */
 [data-component="dialog-v2"]:has(.ps-navigator) [data-slot="dialog-container"] {
   width: min(calc(100vw - 32px), 520px);
-  height: min(calc(100vh - 96px), 480px);
+  height: min(calc(100vh - 96px), 720px);
 }
 
 [data-slot="dialog-body"] > [data-scrollable]:has(> .ps-navigator) {
