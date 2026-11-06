@@ -29,7 +29,6 @@ export const definition = Plugin.define({
       deleteDescription:
         'Permanently delete "{{title}}"? This cannot be undone.',
       deleteFailed: "Could not delete this session. Please retry.",
-      current: "Current",
       untitled: "New session",
       more: "Show more sessions ({{count}} remaining)",
       loading: "Loading sessions…",
@@ -67,7 +66,6 @@ export const definition = Plugin.define({
       deleteTitle: "删除会话？",
       deleteDescription: "确定永久删除“{{title}}”？此操作无法撤销。",
       deleteFailed: "无法删除此会话，请重试。",
-      current: "当前",
       untitled: "新会话",
       more: "显示更多会话（剩余 {{count}} 条）",
       loading: "正在加载会话…",

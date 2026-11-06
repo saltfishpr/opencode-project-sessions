@@ -643,11 +643,6 @@ export function Navigator(props: {
                                         <ui.Loader size="small" />
                                       </Show>
                                       <span class="ps-labels">
-                                        <Show when={entryKey === currentKey()}>
-                                          <span class="ps-current">
-                                            {ctx.t("current")}
-                                          </span>
-                                        </Show>
                                         <Show when={status(entry())}>
                                           {(value) => (
                                             <span

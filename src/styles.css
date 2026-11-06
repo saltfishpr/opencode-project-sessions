@@ -245,9 +245,6 @@
 .ps-labels:empty {
   display: none;
 }
-.ps-current {
-  color: var(--v2-text-text-muted);
-}
 .ps-status {
   display: inline-flex;
   align-items: center;
