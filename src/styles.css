@@ -81,7 +81,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-bottom: 4px;
+  padding-block: 4px;
   scrollbar-gutter: stable;
 }
 .ps-group + .ps-group {
@@ -147,18 +147,20 @@
 }
 .ps-row-error {
   padding: 4px 8px;
+  padding-inline-start: 56px;
 }
 .ps-sessions {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin-inline-start: 48px;
+  gap: 4px;
+  margin-top: 4px;
 }
 .ps-session {
   min-height: 36px;
   padding: 6px 8px;
+  padding-inline-start: 56px;
 }
-.ps-session[data-current] {
+.ps-list:not(:has(.ps-row:hover:not(:disabled))) .ps-session[data-current] {
   background: var(--v2-overlay-simple-overlay-pressed);
 }
 .ps-session[data-current]::before {
@@ -212,6 +214,7 @@
 .ps-more {
   min-height: 28px;
   padding: 4px 8px;
+  padding-inline-start: 56px;
   color: var(--v2-text-text-muted);
 }
 .ps-warning {
