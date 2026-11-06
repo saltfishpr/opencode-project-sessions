@@ -186,6 +186,30 @@
   padding: 6px 8px;
   padding-inline-start: 56px;
 }
+.ps-session-row {
+  position: relative;
+}
+.ps-session-actions {
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+}
+.ps-session-row:is(:hover, :focus-within, [data-changing]) > .ps-session {
+  background: var(--v2-overlay-simple-overlay-pressed);
+}
+.ps-session-row:is(:hover, :focus-within, [data-changing]) time {
+  visibility: hidden;
+}
+.ps-session-row:is(:hover, :focus-within, [data-changing]) > .ps-session-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
 .ps-session[data-current] {
   background: var(--v2-overlay-simple-overlay-pressed);
 }
@@ -208,6 +232,10 @@
   font-size: 12px;
   line-height: 16px;
   font-variant-numeric: tabular-nums;
+}
+.ps-meta time {
+  min-width: 52px;
+  text-align: end;
 }
 .ps-labels {
   display: flex;

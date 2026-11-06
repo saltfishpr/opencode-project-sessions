@@ -20,6 +20,7 @@ export function createNavigatorData(
     errors: Record<string, boolean>;
   }>({ snapshots: Object.fromEntries(cache), loading: {}, errors: {} });
   const [revision, setRevision] = createSignal(0);
+  const changes = new Map<string, Map<string, SessionInfo | null>>();
 
   createEffect(() => {
     revision();
@@ -42,6 +43,7 @@ export function createNavigatorData(
     onCleanup(() => controller.abort());
 
     untrack(() => {
+      changes.clear();
       const listed = new Set(servers.map((server) => server.id));
       for (const id of Object.keys(state.snapshots)) {
         if (!listed.has(id)) {
@@ -79,6 +81,7 @@ export function createNavigatorData(
         if (!server.connected || !server.compatible) continue;
 
         const changed = new Map<string, SessionInfo | null>();
+        changes.set(server.id, changed);
         // Changes received during pagination win over older index pages.
         onCleanup(
           server.data.listen(({ details: event }) => {
@@ -189,6 +192,7 @@ export function createNavigatorData(
     failed: () => ctx.servers.list().some((id) => state.errors[id]),
     refresh: () => setRevision((value) => value + 1),
     update(server: string, session: SessionInfo) {
+      changes.get(server)?.set(session.id, session);
       const snapshot = state.snapshots[server];
       if (!snapshot) return;
       const sessions = snapshot.sessions.filter(
@@ -197,6 +201,17 @@ export function createNavigatorData(
       if (!session.parentID && session.time.archived === undefined)
         sessions.push(session);
       const next = { ...snapshot, sessions };
+      cache.set(server, next);
+      setState("snapshots", server, next);
+    },
+    remove(server: string, sessionID: string) {
+      changes.get(server)?.set(sessionID, null);
+      const snapshot = state.snapshots[server];
+      if (!snapshot) return;
+      const next = {
+        ...snapshot,
+        sessions: snapshot.sessions.filter((session) => session.id !== sessionID),
+      };
       cache.set(server, next);
       setState("snapshots", server, next);
     },

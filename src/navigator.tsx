@@ -29,6 +29,10 @@ export function Navigator(props: {
   const [scope, setScope] = createSignal(prefs.value.scope);
   const [focused, setFocused] = createSignal("");
   const [opening, setOpening] = createSignal<string>();
+  const [changing, setChanging] = createSignal<{
+    key: string;
+    action: "archive" | "delete";
+  }>();
   const [navigating, setNavigating] = createSignal<Entry>();
   const [error, setError] = createSignal<{ key: string; message: string }>();
   const [now, setNow] = createSignal(Date.now());
@@ -222,7 +226,7 @@ export function Navigator(props: {
   });
 
   const open = async (entry: Entry | ProjectGroup) => {
-    if (opening()) return;
+    if (opening() || changing()) return;
     setOpening(entry.key);
     setError(undefined);
     const creating = !("session" in entry);
@@ -269,6 +273,55 @@ export function Navigator(props: {
       if (controller.signal.aborted) return;
       setOpening(undefined);
       setError({ key: entry.key, message: ctx.t(failure) });
+    }
+  };
+
+  const changeSession = async (entry: Entry, action: "archive" | "delete") => {
+    if (opening() || changing()) return;
+    setChanging({ key: entry.key, action });
+    setError(undefined);
+    try {
+      if (
+        action === "delete" &&
+        !(await ctx.dialogs.confirm({
+          title: ctx.t("deleteTitle"),
+          description: ctx.t("deleteDescription", {
+            title: entry.session.title || ctx.t("untitled"),
+          }),
+          confirm: ctx.t("delete"),
+          danger: true,
+        }))
+      )
+        return;
+      if (controller.signal.aborted) return;
+      const server = ctx.servers.get(entry.server);
+      if (!server?.connected || !server.compatible)
+        throw new Error("Server unavailable");
+      const signal = AbortSignal.any([
+        controller.signal,
+        AbortSignal.timeout(15_000),
+      ]);
+      if (action === "archive") {
+        await server.client.session.update(
+          { sessionID: entry.session.id, archived: true },
+          { signal },
+        );
+      } else {
+        await server.client.session.remove(
+          { sessionID: entry.session.id },
+          { signal },
+        );
+      }
+      if (!controller.signal.aborted)
+        data.remove(entry.server, entry.session.id);
+    } catch {
+      if (!controller.signal.aborted)
+        setError({
+          key: entry.key,
+          message: ctx.t(action === "archive" ? "archiveFailed" : "deleteFailed"),
+        });
+    } finally {
+      if (!controller.signal.aborted) setChanging(undefined);
     }
   };
 
@@ -530,6 +583,7 @@ export function Navigator(props: {
                         busy={opening() === key}
                         disabled={
                           !!opening() ||
+                          !!changing() ||
                           !ctx.servers.get(group().server)?.connected ||
                           !ctx.servers.get(group().server)?.compatible
                         }
@@ -546,69 +600,106 @@ export function Navigator(props: {
                               )!;
                             return (
                               <div class="ps-entry">
-                                <button
-                                  type="button"
-                                  class="ps-row ps-session"
-                                  data-current={
-                                    entryKey === currentKey() || undefined
+                                <div
+                                  class="ps-session-row"
+                                  data-changing={
+                                    changing()?.key === entryKey || undefined
                                   }
-                                  data-nav={entryKey}
-                                  data-kind="session"
-                                  data-group={key}
-                                  data-session-key={entryKey}
-                                  tabIndex={focused() === entryKey ? 0 : -1}
-                                  aria-current={
-                                    entryKey === currentKey()
-                                      ? "page"
-                                      : undefined
-                                  }
-                                  aria-busy={opening() === entryKey}
-                                  onClick={() => void open(entry())}
                                 >
-                                  <span class="ps-copy">
-                                    <span class="ps-title" dir="auto">
-                                      {entry().session.title ||
-                                        ctx.t("untitled")}
-                                    </span>
-                                    <Show when={metadata(entry(), group())}>
-                                      {(value) => (
-                                        <span class="ps-description" dir="auto">
-                                          {value()}
-                                        </span>
-                                      )}
-                                    </Show>
-                                  </span>
-                                  <span class="ps-meta">
-                                    <Show when={opening() === entryKey}>
-                                      <ui.Loader size="small" />
-                                    </Show>
-                                    <span class="ps-labels">
-                                      <Show when={entryKey === currentKey()}>
-                                        <span class="ps-current">
-                                          {ctx.t("current")}
-                                        </span>
-                                      </Show>
-                                      <Show when={status(entry())}>
+                                  <button
+                                    type="button"
+                                    class="ps-row ps-session"
+                                    data-current={
+                                      entryKey === currentKey() || undefined
+                                    }
+                                    data-nav={entryKey}
+                                    data-kind="session"
+                                    data-group={key}
+                                    data-session-key={entryKey}
+                                    tabIndex={focused() === entryKey ? 0 : -1}
+                                    aria-current={
+                                      entryKey === currentKey()
+                                        ? "page"
+                                        : undefined
+                                    }
+                                    aria-busy={opening() === entryKey}
+                                    onClick={() => void open(entry())}
+                                  >
+                                    <span class="ps-copy">
+                                      <span class="ps-title" dir="auto">
+                                        {entry().session.title ||
+                                          ctx.t("untitled")}
+                                      </span>
+                                      <Show when={metadata(entry(), group())}>
                                         {(value) => (
-                                          <span
-                                            class="ps-status"
-                                            data-status={value()}
-                                          >
-                                            <span class="ps-dot" />
-                                            {ctx.t(value())}
+                                          <span class="ps-description" dir="auto">
+                                            {value()}
                                           </span>
                                         )}
                                       </Show>
                                     </span>
-                                    <time
-                                      dateTime={new Date(
-                                        entry().session.time.updated,
-                                      ).toISOString()}
-                                    >
-                                      {age(entry().session.time.updated)}
-                                    </time>
-                                  </span>
-                                </button>
+                                    <span class="ps-meta">
+                                      <Show when={opening() === entryKey}>
+                                        <ui.Loader size="small" />
+                                      </Show>
+                                      <span class="ps-labels">
+                                        <Show when={entryKey === currentKey()}>
+                                          <span class="ps-current">
+                                            {ctx.t("current")}
+                                          </span>
+                                        </Show>
+                                        <Show when={status(entry())}>
+                                          {(value) => (
+                                            <span
+                                              class="ps-status"
+                                              data-status={value()}
+                                            >
+                                              <span class="ps-dot" />
+                                              {ctx.t(value())}
+                                            </span>
+                                          )}
+                                        </Show>
+                                      </span>
+                                      <time
+                                        dateTime={new Date(
+                                          entry().session.time.updated,
+                                        ).toISOString()}
+                                      >
+                                        {age(entry().session.time.updated)}
+                                      </time>
+                                    </span>
+                                  </button>
+                                  <div class="ps-session-actions">
+                                    <For each={["archive", "delete"] as const}>
+                                      {(action) => (
+                                        <ui.IconButton
+                                          icon={
+                                            action === "archive"
+                                              ? "archive"
+                                              : "trash"
+                                          }
+                                          label={ctx.t(action)}
+                                          variant="ghost-muted"
+                                          busy={
+                                            changing()?.key === entryKey &&
+                                            changing()?.action === action
+                                          }
+                                          disabled={
+                                            !!opening() ||
+                                            !!changing() ||
+                                            !ctx.servers.get(entry().server)
+                                              ?.connected ||
+                                            !ctx.servers.get(entry().server)
+                                              ?.compatible
+                                          }
+                                          onClick={() =>
+                                            void changeSession(entry(), action)
+                                          }
+                                        />
+                                      )}
+                                    </For>
+                                  </div>
+                                </div>
                                 <Show when={error()?.key === entryKey}>
                                   <div
                                     class="ps-error ps-row-error"
