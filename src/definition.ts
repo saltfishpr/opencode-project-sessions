@@ -1,0 +1,80 @@
+import { Schema } from "effect";
+import { Plugin, Store, type SetupContext } from "@opencode/plugin/gui";
+
+export const definition = Plugin.define({
+  stores: {
+    navigation: Store.global(
+      Schema.Struct({
+        expanded: Schema.Record(Schema.String, Schema.Boolean),
+        limits: Schema.Record(Schema.String, Schema.Number),
+        scroll: Schema.Record(Schema.String, Schema.Number),
+        scope: Schema.Literals(["all", "current"]),
+      }),
+      { expanded: {}, limits: {}, scroll: {}, scope: "all" },
+    ),
+  },
+  i18n: {
+    en: {
+      title: "Project sessions",
+      command: "Open project sessions",
+      search: "Search projects, session titles or directories…",
+      all: "All projects",
+      currentProject: "Current project",
+      locate: "Locate current session",
+      current: "Current",
+      untitled: "New session",
+      more: "Show more sessions ({{count}} remaining)",
+      loading: "Loading sessions…",
+      empty: "No unarchived sessions to show",
+      emptyDescription:
+        "Archived sessions and subagent sessions are not included.",
+      noResults: "No matching sessions",
+      clear: "Clear search",
+      retry: "Retry",
+      unavailable:
+        "Some servers are unavailable. Their sessions may not be up to date.",
+      failed: "Could not load sessions. Please retry.",
+      openFailed: "Could not open this session. Please retry.",
+      archived: "This session has been archived and is no longer listed.",
+      working: "Working",
+      approval: "Needs approval",
+      input: "Needs input",
+      selectHint: "Select",
+      expandHint: "Collapse / expand",
+      openHint: "Open",
+      closeHint: "Close",
+      now: "Just now",
+    },
+    "zh-CN": {
+      title: "项目会话",
+      command: "打开项目会话",
+      search: "搜索项目、会话标题或目录…",
+      all: "全部项目",
+      currentProject: "当前项目",
+      locate: "定位当前会话",
+      current: "当前",
+      untitled: "新会话",
+      more: "显示更多会话（剩余 {{count}} 条）",
+      loading: "正在加载会话…",
+      empty: "暂无可显示的未归档会话",
+      emptyDescription: "此列表不包含归档会话和子智能体会话。",
+      noResults: "没有匹配的会话",
+      clear: "清除搜索",
+      retry: "重试",
+      unavailable: "部分服务器不可用，其会话列表可能不是最新内容。",
+      failed: "无法加载会话，请重试。",
+      openFailed: "无法打开此会话，请重试。",
+      archived: "此会话已归档，已从列表中移除。",
+      working: "运行中",
+      approval: "待授权",
+      input: "待输入",
+      selectHint: "选择",
+      expandHint: "折叠 / 展开",
+      openHint: "打开",
+      closeHint: "关闭",
+      now: "刚刚",
+    },
+  },
+});
+
+export type NavigatorContext = SetupContext<typeof definition>;

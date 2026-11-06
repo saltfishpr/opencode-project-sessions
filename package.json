@@ -1,0 +1,30 @@
+{
+  "name": "opencode-project-sessions",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A project-grouped session navigator for OpenCode Desktop.",
+  "type": "module",
+  "exports": {
+    "./gui-experimental": "./dist/gui-experimental.cjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.2.5",
+    "effect": "4.0.6"
+  },
+  "devDependencies": {
+    "@opencode/client": "2.2.5",
+    "@types/node": "^22.0.0",
+    "solid-js": "^1.9.0",
+    "typescript": "^5.7.0",
+    "vite": "^7.0.0",
+    "vite-plugin-solid": "^2.11.0"
+  }
+}
