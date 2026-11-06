@@ -1,9 +1,9 @@
 {
   "name": "opencode-project-sessions",
   "version": "0.1.0",
-  "private": true,
   "description": "A project-grouped session navigator for OpenCode Desktop.",
   "type": "module",
+  "packageManager": "pnpm@11.25.0",
   "exports": {
     "./gui-experimental": "./dist/gui-experimental.cjs"
   },
@@ -13,7 +13,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "pnpm run build"
   },
   "dependencies": {
     "@opencode/plugin": "2.2.5",
