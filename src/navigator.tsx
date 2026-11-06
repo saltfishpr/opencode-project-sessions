@@ -341,7 +341,7 @@ export function Navigator(props: {
     if (!server?.connected) return;
     const sessions = server.data.session;
     const ids = [entry.session.id, ...sessions.family(entry.session.id)];
-    if (ids.some((id) => sessions.permission.list(id).length > 0))
+    if (ids.some((id) => (sessions.permission.list(id)?.length ?? 0) > 0))
       return "approval";
     if (ids.some((id) => (sessions.form.list(id)?.length ?? 0) > 0))
       return "input";
@@ -358,7 +358,7 @@ export function Navigator(props: {
     if (branch) return branch;
     return pathKey(entry.session.location.directory) ===
       pathKey(group.directory)
-      ? group.name
+      ? undefined
       : entry.session.location.directory;
   };
   const hints = [
@@ -397,6 +397,7 @@ export function Navigator(props: {
       >
         <div class="ps-controls">
           <ui.TextInput
+            class="ps-search"
             type="search"
             size="large"
             autofocus
@@ -516,7 +517,6 @@ export function Navigator(props: {
                           name={
                             expanded(key) ? "chevron-down" : "chevron-right"
                           }
-                          size="small"
                         />
                         <ui.Icon name="folder" />
                         <span class="ps-copy">
@@ -569,24 +569,23 @@ export function Navigator(props: {
                                     aria-busy={opening() === entryKey}
                                     onClick={() => void open(entry())}
                                   >
-                                    <span class="ps-session-icon">
-                                      <Show
-                                        when={opening() === entryKey}
-                                        fallback={<ui.Icon name="comment" />}
-                                      >
-                                        <ui.Loader />
-                                      </Show>
-                                    </span>
                                     <span class="ps-copy">
                                       <span class="ps-title" dir="auto">
                                         {entry().session.title ||
                                           ctx.t("untitled")}
                                       </span>
-                                      <span class="ps-description" dir="auto">
-                                        {metadata(entry(), group())}
-                                      </span>
+                                      <Show when={metadata(entry(), group())}>
+                                        {(value) => (
+                                          <span class="ps-description" dir="auto">
+                                            {value()}
+                                          </span>
+                                        )}
+                                      </Show>
                                     </span>
                                     <span class="ps-meta">
+                                      <Show when={opening() === entryKey}>
+                                        <ui.Loader size="small" />
+                                      </Show>
                                       <span class="ps-labels">
                                         <Show when={entryKey === currentKey()}>
                                           <span class="ps-current">

@@ -51,7 +51,7 @@ pnpm run build
 
 插件不预设全局快捷键。可以在 **Settings → Shortcuts → Navigation** 中为“打开项目会话”设置快捷键。命令 ID 为 `opencode-project-sessions.open`。
 
-分支名仅在 OpenCode 已有对应 VCS 信息时显示，否则显示项目名或 worktree 目录。运行状态使用会话信息及宿主已同步的数据；“待授权 / 待输入”只在宿主已知对应请求时显示，不能替代原生通知或完整的待处理列表。已断开连接的服务器不显示实时状态。
+分支名仅在 OpenCode 已有对应 VCS 信息时显示，否则仅在会话目录与项目根目录不同时显示目录，不重复显示项目名。运行状态使用会话信息及宿主已同步的数据；“待授权 / 待输入”只在宿主已知对应请求时显示，不能替代原生通知或完整的待处理列表。已断开连接的服务器不显示实时状态。
 
 ## 开发
 
@@ -71,7 +71,7 @@ pnpm run dev
 
 | 项目       | 对齐依据                                                                                                                         |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| 弹窗       | `packages/ui/src/overlays/dialog/dialog.css`：使用原生 large 弹窗，640×480px、6px 圆角；小窗口限制宽高。标题字号由官方组件控制。 |
+| 弹窗       | `packages/ui/src/overlays/dialog/dialog.css`：使用原生弹窗，宽度收窄为 520px、高度 480px、6px 圆角；小窗口限制宽高。标题字号由官方组件控制。 |
 | 列表文字   | `packages/app/src/shell/commands/dialog.css`：13px / 16px、字距 -0.04px；标题字重 530，描述字重 440。                            |
 | 时间与状态 | `packages/app/src/shell/titlebar/inbox.tsx`：12px / 16px，弱化文字颜色，时间使用等宽数字。                                       |
 | 交互组件   | `packages/app/src/runtime/plugin/ui.tsx`：通过 `ctx.ui` 直接使用宿主组件。                                                       |

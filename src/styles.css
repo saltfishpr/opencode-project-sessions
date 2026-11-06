@@ -1,6 +1,6 @@
 /* Dialog chrome, inputs, buttons, tooltips and keybinds are supplied by the host. */
 [data-component="dialog-v2"]:has(.ps-navigator) [data-slot="dialog-container"] {
-  width: min(calc(100vw - 32px), 640px);
+  width: min(calc(100vw - 32px), 520px);
   height: min(calc(100vh - 96px), 480px);
 }
 
@@ -25,6 +25,10 @@
 
 .ps-controls {
   flex-shrink: 0;
+}
+.ps-search {
+  width: 100%;
+  min-width: 0;
 }
 .ps-toolbar {
   display: flex;
@@ -61,7 +65,7 @@
 }
 .ps-scope:hover:not(:disabled),
 .ps-row:hover:not(:disabled) {
-  background: var(--v2-overlay-simple-overlay-hover);
+  background: var(--v2-overlay-simple-overlay-pressed);
 }
 .ps-scope:disabled {
   opacity: 0.5;
@@ -98,8 +102,7 @@
 .ps-project:disabled {
   cursor: default;
 }
-.ps-project > [data-component="icon"],
-.ps-session-icon {
+.ps-project > [data-slot="icon-svg"] {
   flex-shrink: 0;
   color: var(--v2-icon-icon-muted);
 }
@@ -143,23 +146,17 @@
   white-space: pre-line;
 }
 .ps-row-error {
-  padding: 4px 8px 4px 32px;
+  padding: 4px 8px;
 }
 .ps-sessions {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-inline-start: 22px;
+  margin-inline-start: 48px;
 }
 .ps-session {
-  min-height: 48px;
+  min-height: 36px;
   padding: 6px 8px;
-}
-.ps-session-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
 }
 .ps-session[data-current] {
   background: var(--v2-overlay-simple-overlay-pressed);
@@ -177,9 +174,8 @@
 .ps-meta {
   display: flex;
   flex-shrink: 0;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
   color: var(--v2-text-text-faint);
   font-size: 12px;
   line-height: 16px;
@@ -215,7 +211,7 @@
 }
 .ps-more {
   min-height: 28px;
-  padding: 4px 8px 4px 32px;
+  padding: 4px 8px;
   color: var(--v2-text-text-muted);
 }
 .ps-warning {
