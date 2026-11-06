@@ -99,6 +99,35 @@
   min-height: 48px;
   padding: 6px 8px;
 }
+.ps-project-row {
+  position: relative;
+}
+.ps-project-meta {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 24px;
+  gap: 8px;
+}
+.ps-project-row > .ps-create {
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+}
+.ps-project-row:is(:hover, :focus-within, [data-creating]) > .ps-project {
+  background: var(--v2-overlay-simple-overlay-pressed);
+}
+.ps-project-row:is(:hover, :focus-within, [data-creating]) .ps-project-meta {
+  visibility: hidden;
+}
+.ps-project-row:is(:hover, :focus-within, [data-creating]) > .ps-create {
+  opacity: 1;
+  pointer-events: auto;
+}
 .ps-project:disabled {
   cursor: default;
 }

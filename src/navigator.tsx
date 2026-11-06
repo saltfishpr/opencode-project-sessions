@@ -37,7 +37,6 @@ export function Navigator(props: {
   let routeTimer: ReturnType<typeof setTimeout> | undefined;
   let list!: HTMLDivElement;
   let restored = false;
-  let locatePending = false;
 
   onCleanup(() => {
     controller.abort();
@@ -171,11 +170,22 @@ export function Navigator(props: {
 
   createEffect(() => {
     if (restored || data.loading()) return;
+    const key = currentProject();
+    if (key) toggle(key, true);
     groups();
     queueMicrotask(() => {
       if (controller.signal.aborted || restored) return;
-      list.scrollTop = prefs.value.scroll[scrollKey()] ?? 0;
       restored = true;
+      if (searching()) return;
+      const target = [
+        ...list.querySelectorAll<HTMLButtonElement>("[data-session-key]"),
+      ].find((item) => item.dataset.sessionKey === currentKey());
+      if (target) {
+        setFocused(target.dataset.nav!);
+        target.scrollIntoView({ block: "nearest" });
+      } else {
+        list.scrollTop = prefs.value.scroll[scrollKey()] ?? 0;
+      }
     });
   });
 
@@ -197,34 +207,6 @@ export function Navigator(props: {
     });
     list.scrollTop = 0;
   };
-  const focusCurrent = () => {
-    const target = [
-      ...list.querySelectorAll<HTMLButtonElement>("[data-session-key]"),
-    ].find((item) => item.dataset.sessionKey === currentKey());
-    target?.focus({ preventScroll: true });
-    target?.scrollIntoView({ block: "nearest" });
-  };
-  const locate = () => {
-    rememberScroll();
-    setQuery("");
-    setScope("all");
-    prefs.update((draft) => {
-      draft.scope = "all";
-      const key = currentProject();
-      if (key) draft.expanded[key] = true;
-    });
-    locatePending = true;
-    queueMicrotask(focusCurrent);
-  };
-  createEffect(() => {
-    if (!locatePending || data.loading()) return;
-    groups();
-    queueMicrotask(() => {
-      if (!controller.signal.aborted) focusCurrent();
-      locatePending = false;
-    });
-  });
-
   createEffect(() => {
     const target = navigating();
     const current = ctx.sessions.current();
@@ -239,10 +221,12 @@ export function Navigator(props: {
     props.close();
   });
 
-  const open = async (entry: Entry) => {
+  const open = async (entry: Entry | ProjectGroup) => {
     if (opening()) return;
     setOpening(entry.key);
     setError(undefined);
+    const creating = !("session" in entry);
+    let failure = creating ? "createFailed" : "openFailed";
     try {
       const server = ctx.servers.get(entry.server);
       if (!server?.connected || !server.compatible)
@@ -251,11 +235,17 @@ export function Navigator(props: {
         controller.signal,
         AbortSignal.timeout(15_000),
       ]);
-      const session = await server.client.session.get(
-        { sessionID: entry.session.id },
-        { signal },
-      );
+      const session = creating
+        ? await server.client.session.create(
+            { location: { directory: entry.directory } },
+            { signal },
+          )
+        : await server.client.session.get(
+            { sessionID: entry.session.id },
+            { signal },
+          );
       if (controller.signal.aborted) return;
+      failure = "openFailed";
       data.update(entry.server, session);
       if (session.time.archived !== undefined) {
         setError({ key: entry.key, message: ctx.t("archived") });
@@ -264,7 +254,11 @@ export function Navigator(props: {
       }
       server.data.session.remember(session);
       ctx.tabs.open({ server: entry.server, id: session.id }, { focus: true });
-      setNavigating({ ...entry, session });
+      setNavigating({
+        key: `${entry.server}\0${session.id}`,
+        server: entry.server,
+        session,
+      });
       routeTimer = setTimeout(() => {
         if (controller.signal.aborted) return;
         setNavigating(undefined);
@@ -274,7 +268,7 @@ export function Navigator(props: {
     } catch {
       if (controller.signal.aborted) return;
       setOpening(undefined);
-      setError({ key: entry.key, message: ctx.t("openFailed") });
+      setError({ key: entry.key, message: ctx.t(failure) });
     }
   };
 
@@ -426,13 +420,6 @@ export function Navigator(props: {
                 {ctx.t("currentProject")}
               </button>
             </div>
-            <ui.Button
-              variant="ghost-muted"
-              disabled={!currentKey()}
-              onClick={locate}
-            >
-              {ctx.t("locate")}
-            </ui.Button>
           </div>
           <Show when={data.failed()}>
             <div class="ps-warning" role="status">
@@ -491,42 +478,64 @@ export function Navigator(props: {
                 const group = () => byKey().get(key)!;
                 return (
                   <section class="ps-group" aria-label={group().name}>
-                    <button
-                      type="button"
-                      class="ps-row ps-project"
-                      disabled={searching()}
-                      data-nav={`project:${key}`}
-                      data-kind="project"
-                      data-group={key}
-                      tabIndex={
-                        focused() === `project:${key}` ||
-                        (!focused() && key === groups()[0]?.key)
-                          ? 0
-                          : -1
-                      }
-                      aria-expanded={expanded(key)}
-                      onClick={() => toggle(key)}
+                    <div
+                      class="ps-project-row"
+                      data-creating={opening() === key || undefined}
                     >
-                      <ui.Icon
-                        name={
-                          expanded(key) ? "chevron-down" : "chevron-right"
+                      <button
+                        type="button"
+                        class="ps-row ps-project"
+                        disabled={searching()}
+                        data-nav={`project:${key}`}
+                        data-kind="project"
+                        data-group={key}
+                        tabIndex={
+                          focused() === `project:${key}` ||
+                          (!focused() && key === groups()[0]?.key)
+                            ? 0
+                            : -1
                         }
+                        aria-expanded={expanded(key)}
+                        onClick={() => toggle(key)}
+                      >
+                        <ui.Icon
+                          name={
+                            expanded(key) ? "chevron-down" : "chevron-right"
+                          }
+                        />
+                        <ui.Icon name="folder" />
+                        <span class="ps-copy">
+                          <span class="ps-title">{group().name}</span>
+                          <span class="ps-description" dir="auto">
+                            {group().directory}
+                          </span>
+                        </span>
+                        <span class="ps-project-meta">
+                          <Show when={ctx.servers.list().length > 1}>
+                            <span class="ps-server">
+                              {ctx.servers.get(group().server)?.name ??
+                                group().server}
+                            </span>
+                          </Show>
+                          <span class="ps-count">
+                            {group().entries.length}
+                          </span>
+                        </span>
+                      </button>
+                      <ui.IconButton
+                        class="ps-create"
+                        icon="new-session"
+                        label={ctx.t("create")}
+                        variant="ghost-muted"
+                        busy={opening() === key}
+                        disabled={
+                          !!opening() ||
+                          !ctx.servers.get(group().server)?.connected ||
+                          !ctx.servers.get(group().server)?.compatible
+                        }
+                        onClick={() => void open(group())}
                       />
-                      <ui.Icon name="folder" />
-                      <span class="ps-copy">
-                        <span class="ps-title">{group().name}</span>
-                        <span class="ps-description" dir="auto">
-                          {group().directory}
-                        </span>
-                      </span>
-                      <Show when={ctx.servers.list().length > 1}>
-                        <span class="ps-server">
-                          {ctx.servers.get(group().server)?.name ??
-                            group().server}
-                        </span>
-                      </Show>
-                      <span class="ps-count">{group().entries.length}</span>
-                    </button>
+                    </div>
                     <Show when={expanded(key)}>
                       <div class="ps-sessions">
                         <For each={visible(group()).map((entry) => entry.key)}>
