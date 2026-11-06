@@ -491,49 +491,42 @@ export function Navigator(props: {
                 const group = () => byKey().get(key)!;
                 return (
                   <section class="ps-group" aria-label={group().name}>
-                    <ui.Tooltip
-                      placement="top"
-                      value={
-                        <span class="ps-tooltip">{`${group().directory}\n${ctx.servers.get(group().server)?.name ?? group().server}`}</span>
+                    <button
+                      type="button"
+                      class="ps-row ps-project"
+                      disabled={searching()}
+                      data-nav={`project:${key}`}
+                      data-kind="project"
+                      data-group={key}
+                      tabIndex={
+                        focused() === `project:${key}` ||
+                        (!focused() && key === groups()[0]?.key)
+                          ? 0
+                          : -1
                       }
+                      aria-expanded={expanded(key)}
+                      onClick={() => toggle(key)}
                     >
-                      <button
-                        type="button"
-                        class="ps-row ps-project"
-                        disabled={searching()}
-                        data-nav={`project:${key}`}
-                        data-kind="project"
-                        data-group={key}
-                        tabIndex={
-                          focused() === `project:${key}` ||
-                          (!focused() && key === groups()[0]?.key)
-                            ? 0
-                            : -1
+                      <ui.Icon
+                        name={
+                          expanded(key) ? "chevron-down" : "chevron-right"
                         }
-                        aria-expanded={expanded(key)}
-                        onClick={() => toggle(key)}
-                      >
-                        <ui.Icon
-                          name={
-                            expanded(key) ? "chevron-down" : "chevron-right"
-                          }
-                        />
-                        <ui.Icon name="folder" />
-                        <span class="ps-copy">
-                          <span class="ps-title">{group().name}</span>
-                          <span class="ps-description" dir="auto">
-                            {group().directory}
-                          </span>
+                      />
+                      <ui.Icon name="folder" />
+                      <span class="ps-copy">
+                        <span class="ps-title">{group().name}</span>
+                        <span class="ps-description" dir="auto">
+                          {group().directory}
                         </span>
-                        <Show when={ctx.servers.list().length > 1}>
-                          <span class="ps-server">
-                            {ctx.servers.get(group().server)?.name ??
-                              group().server}
-                          </span>
-                        </Show>
-                        <span class="ps-count">{group().entries.length}</span>
-                      </button>
-                    </ui.Tooltip>
+                      </span>
+                      <Show when={ctx.servers.list().length > 1}>
+                        <span class="ps-server">
+                          {ctx.servers.get(group().server)?.name ??
+                            group().server}
+                        </span>
+                      </Show>
+                      <span class="ps-count">{group().entries.length}</span>
+                    </button>
                     <Show when={expanded(key)}>
                       <div class="ps-sessions">
                         <For each={visible(group()).map((entry) => entry.key)}>
@@ -544,76 +537,69 @@ export function Navigator(props: {
                               )!;
                             return (
                               <div class="ps-entry">
-                                <ui.Tooltip
-                                  placement="top"
-                                  value={
-                                    entry().session.title || ctx.t("untitled")
+                                <button
+                                  type="button"
+                                  class="ps-row ps-session"
+                                  data-current={
+                                    entryKey === currentKey() || undefined
                                   }
+                                  data-nav={entryKey}
+                                  data-kind="session"
+                                  data-group={key}
+                                  data-session-key={entryKey}
+                                  tabIndex={focused() === entryKey ? 0 : -1}
+                                  aria-current={
+                                    entryKey === currentKey()
+                                      ? "page"
+                                      : undefined
+                                  }
+                                  aria-busy={opening() === entryKey}
+                                  onClick={() => void open(entry())}
                                 >
-                                  <button
-                                    type="button"
-                                    class="ps-row ps-session"
-                                    data-current={
-                                      entryKey === currentKey() || undefined
-                                    }
-                                    data-nav={entryKey}
-                                    data-kind="session"
-                                    data-group={key}
-                                    data-session-key={entryKey}
-                                    tabIndex={focused() === entryKey ? 0 : -1}
-                                    aria-current={
-                                      entryKey === currentKey()
-                                        ? "page"
-                                        : undefined
-                                    }
-                                    aria-busy={opening() === entryKey}
-                                    onClick={() => void open(entry())}
-                                  >
-                                    <span class="ps-copy">
-                                      <span class="ps-title" dir="auto">
-                                        {entry().session.title ||
-                                          ctx.t("untitled")}
-                                      </span>
-                                      <Show when={metadata(entry(), group())}>
+                                  <span class="ps-copy">
+                                    <span class="ps-title" dir="auto">
+                                      {entry().session.title ||
+                                        ctx.t("untitled")}
+                                    </span>
+                                    <Show when={metadata(entry(), group())}>
+                                      {(value) => (
+                                        <span class="ps-description" dir="auto">
+                                          {value()}
+                                        </span>
+                                      )}
+                                    </Show>
+                                  </span>
+                                  <span class="ps-meta">
+                                    <Show when={opening() === entryKey}>
+                                      <ui.Loader size="small" />
+                                    </Show>
+                                    <span class="ps-labels">
+                                      <Show when={entryKey === currentKey()}>
+                                        <span class="ps-current">
+                                          {ctx.t("current")}
+                                        </span>
+                                      </Show>
+                                      <Show when={status(entry())}>
                                         {(value) => (
-                                          <span class="ps-description" dir="auto">
-                                            {value()}
+                                          <span
+                                            class="ps-status"
+                                            data-status={value()}
+                                          >
+                                            <span class="ps-dot" />
+                                            {ctx.t(value())}
                                           </span>
                                         )}
                                       </Show>
                                     </span>
-                                    <span class="ps-meta">
-                                      <Show when={opening() === entryKey}>
-                                        <ui.Loader size="small" />
-                                      </Show>
-                                      <span class="ps-labels">
-                                        <Show when={entryKey === currentKey()}>
-                                          <span class="ps-current">
-                                            {ctx.t("current")}
-                                          </span>
-                                        </Show>
-                                        <Show when={status(entry())}>
-                                          {(value) => (
-                                            <span
-                                              class="ps-status"
-                                              data-status={value()}
-                                            >
-                                              <span class="ps-dot" />
-                                              {ctx.t(value())}
-                                            </span>
-                                          )}
-                                        </Show>
-                                      </span>
-                                      <time
-                                        dateTime={new Date(
-                                          entry().session.time.updated,
-                                        ).toISOString()}
-                                      >
-                                        {age(entry().session.time.updated)}
-                                      </time>
-                                    </span>
-                                  </button>
-                                </ui.Tooltip>
+                                    <time
+                                      dateTime={new Date(
+                                        entry().session.time.updated,
+                                      ).toISOString()}
+                                    >
+                                      {age(entry().session.time.updated)}
+                                    </time>
+                                  </span>
+                                </button>
                                 <Show when={error()?.key === entryKey}>
                                   <div
                                     class="ps-error ps-row-error"

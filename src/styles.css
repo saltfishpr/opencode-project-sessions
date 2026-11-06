@@ -142,9 +142,6 @@
   color: var(--v2-text-text-muted);
   font-size: 12px;
 }
-.ps-tooltip {
-  white-space: pre-line;
-}
 .ps-row-error {
   padding: 4px 8px;
   padding-inline-start: 56px;
@@ -160,7 +157,7 @@
   padding: 6px 8px;
   padding-inline-start: 56px;
 }
-.ps-list:not(:has(.ps-row:hover:not(:disabled))) .ps-session[data-current] {
+.ps-session[data-current] {
   background: var(--v2-overlay-simple-overlay-pressed);
 }
 .ps-session[data-current]::before {
