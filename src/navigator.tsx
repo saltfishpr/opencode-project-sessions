@@ -28,6 +28,7 @@ export function Navigator(props: {
   const [query, setQuery] = createSignal("");
   const [scope, setScope] = createSignal(prefs.value.scope);
   const [focused, setFocused] = createSignal("");
+  const [orderFrozen, setOrderFrozen] = createSignal(false);
   const [opening, setOpening] = createSignal<string>();
   const [changing, setChanging] = createSignal<{
     key: string;
@@ -41,6 +42,7 @@ export function Navigator(props: {
   let routeTimer: ReturnType<typeof setTimeout> | undefined;
   let list!: HTMLDivElement;
   let restored = false;
+  let browsing = false;
 
   onCleanup(() => {
     controller.abort();
@@ -77,7 +79,6 @@ export function Navigator(props: {
   );
   const searching = () => terms().length > 0;
 
-  // Freeze each row's position for this dialog visit, including when live updates change its timestamp.
   const projectOrder = new Map<string, number>();
   const sessionOrder = new Map<string, number>();
   const ordered = createMemo(() => {
@@ -92,6 +93,10 @@ export function Navigator(props: {
         (a, b) =>
           b.entries[0].session.time.updated - a.entries[0].session.time.updated,
       );
+    if (!orderFrozen()) {
+      projectOrder.clear();
+      sessionOrder.clear();
+    }
     for (const group of groups) {
       if (!projectOrder.has(group.key))
         projectOrder.set(group.key, projectOrder.size);
@@ -100,7 +105,9 @@ export function Navigator(props: {
           sessionOrder.set(entry.key, sessionOrder.size);
       }
       group.entries.sort(
-        (a, b) => sessionOrder.get(a.key)! - sessionOrder.get(b.key)!,
+        (a, b) =>
+          Number(b.key === currentKey()) - Number(a.key === currentKey()) ||
+          sessionOrder.get(a.key)! - sessionOrder.get(b.key)!,
       );
     }
     return groups.sort(
@@ -109,6 +116,17 @@ export function Navigator(props: {
           Number(a.key === currentProject()) ||
         projectOrder.get(a.key)! - projectOrder.get(b.key)!,
     );
+  });
+  const beginBrowsing = () => {
+    ordered();
+    browsing = true;
+    setOrderFrozen(true);
+  };
+  createEffect(() => {
+    if (orderFrozen() || data.loading()) return;
+    // Capture the final initial order before freezing it for live updates.
+    ordered();
+    setOrderFrozen(true);
   });
   const groups = createMemo(() =>
     ordered().flatMap((group) => {
@@ -135,11 +153,7 @@ export function Navigator(props: {
     searching() || (prefs.value.expanded[key] ?? key === currentProject());
   const visible = (group: ProjectGroup) => {
     if (searching()) return group.entries;
-    const entries = group.entries.slice(0, prefs.value.limits[group.key] ?? 8);
-    const current = group.entries.find((entry) => entry.key === currentKey());
-    return current && !entries.includes(current)
-      ? [...entries, current]
-      : entries;
+    return group.entries.slice(0, prefs.value.limits[group.key] ?? 8);
   };
   const toggle = (key: string, value = !expanded(key)) => {
     if (searching()) return;
@@ -174,13 +188,15 @@ export function Navigator(props: {
 
   createEffect(() => {
     if (restored || data.loading()) return;
-    const key = currentProject();
-    if (key) toggle(key, true);
+    if (!browsing) {
+      const key = currentProject();
+      if (key) toggle(key, true);
+    }
     groups();
     queueMicrotask(() => {
       if (controller.signal.aborted || restored) return;
       restored = true;
-      if (searching()) return;
+      if (browsing || searching()) return;
       const target = [
         ...list.querySelectorAll<HTMLButtonElement>("[data-session-key]"),
       ].find((item) => item.dataset.sessionKey === currentKey());
@@ -194,6 +210,7 @@ export function Navigator(props: {
   });
 
   const changeQuery = (value: string) => {
+    beginBrowsing();
     rememberScroll();
     setQuery(value);
     queueMicrotask(() => {
@@ -204,6 +221,7 @@ export function Navigator(props: {
     });
   };
   const changeScope = (value: "all" | "current") => {
+    beginBrowsing();
     rememberScroll();
     setScope(value);
     prefs.update((draft) => {
@@ -326,6 +344,7 @@ export function Navigator(props: {
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
+    beginBrowsing();
     if (
       event.isComposing ||
       event.altKey ||
@@ -434,6 +453,7 @@ export function Navigator(props: {
     >
       <div
         class="ps-navigator"
+        onPointerDown={beginBrowsing}
         onKeyDown={onKeyDown}
         onFocusIn={(event) => {
           const button = (event.target as HTMLElement).closest<HTMLElement>(
@@ -505,6 +525,9 @@ export function Navigator(props: {
           class="ps-list"
           data-scrollable
           aria-busy={data.loading()}
+          onPointerMove={beginBrowsing}
+          onFocusIn={beginBrowsing}
+          onWheel={beginBrowsing}
           onScroll={rememberScroll}
         >
           <Show
