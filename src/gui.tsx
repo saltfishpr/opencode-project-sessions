@@ -29,6 +29,7 @@ export default Plugin.define({
         title: ctx.t("command"),
         keywords: "projects sessions navigator 项目 会话 导航",
         section: "navigation",
+        bind: "mod+shift+s",
         run: open,
       }),
     );
@@ -36,7 +37,11 @@ export default Plugin.define({
       at: "session.header",
       order: 30,
       render: () => (
-        <ui.Tooltip value={ctx.t("command")} placement="bottom">
+        <ui.Tooltip
+          value={ctx.t("command")}
+          keys={ctx.keybinds.keybind(`${ctx.id}.open`)}
+          placement="bottom"
+        >
           <ui.IconButton
             icon="folder"
             label={ctx.t("command")}

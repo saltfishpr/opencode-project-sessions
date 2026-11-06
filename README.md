@@ -49,7 +49,7 @@ pnpm run build
 | 展开 / 折叠项目  | 聚焦项目时按 → / ←；会话行按 ← 返回项目标题        |
 | 关闭弹窗         | Esc、关闭按钮或单击弹窗外部                        |
 
-插件不预设全局快捷键。可以在 **Settings → Shortcuts → Navigation** 中为“打开项目会话”设置快捷键。命令 ID 为 `opencode-project-sessions.open`。
+“打开项目会话”的默认快捷键为 macOS **⌘⇧S（Command + Shift + S）**，Windows/Linux **Ctrl + Shift + S**。可以在 **Settings → Shortcuts → Navigation** 中修改或禁用；按钮悬浮提示显示当前生效的快捷键。命令 ID 为 `opencode-project-sessions.open`。
 
 文件夹按钮通过官方 `session.header` 插槽显示，支持顶部 tab 和 side tab 模式。主页没有会话 header，可通过命令面板或配置的快捷键打开导航器。
 
