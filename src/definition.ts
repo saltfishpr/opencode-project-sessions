@@ -45,7 +45,7 @@ export const definition = Plugin.define({
       closeHint: "Close",
       now: "Just now",
     },
-    "zh-CN": {
+    zh: {
       title: "项目会话",
       command: "打开项目会话",
       search: "搜索项目、会话标题或目录…",
