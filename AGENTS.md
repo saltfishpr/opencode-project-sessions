@@ -1,0 +1,57 @@
+# 开发约定
+
+`README.md` 面向插件使用者，说明产品用途、安装和使用方式。本文件记录开发流程、集成边界和交互约束。
+
+## 开发与验证
+
+- 使用 pnpm 安装依赖。修改 `src/` 中的源码，运行 `pnpm run dev` 可监听构建；本地目录加载的插件在重新构建后自动重载。
+- 源码变更后运行 `pnpm run typecheck` 和 `pnpm run build`；确认两者成功，再检查 `git diff --check`。
+- `dist/gui-experimental.cjs` 已纳入版本控制，供本地目录安装直接使用。通过构建更新产物，不直接编辑产物；提交源码时包含对应产物。
+- 文档变更后检查 `git diff --check`，核对描述与源码一致。未经用户要求，不新增单元测试。
+
+## OpenCode 集成
+
+当前依赖面向 OpenCode 2.2.5 的 experimental GUI plugin API。升级依赖或调整集成时，先核实目标版本的 API；官方文档入口为 <https://opencode.ai/v2/docs/build/plugins/gui>。
+
+- 插件只有 GUI 入口，不添加 server 入口或额外认证流程。查询使用 `ctx.servers.get(id).client`，复用 Desktop 已认证的连接。
+- 入口按钮注册在 `session.header`，排序值为 `30`，位于内置“摘要”的 `20` 之后；主页通过命令面板和快捷键访问。
+- 命令 ID 为 `opencode-project-sessions.open`。通过 `Command.bind` 提供默认快捷键，用户设置优先；Tooltip 通过 `ctx.keybinds.keybind` 读取生效值。
+- 中文语言键使用 `zh`，英文使用 `en`。宿主按语言键精确匹配，`zh-CN` 会导致简体中文界面回退英文。用户可见文案通过 `ctx.t` 获取。
+
+## 数据与导航
+
+修改 `src/model.ts`、`src/data.ts` 或导航逻辑时，保留以下语义：
+
+- 按 server 和完整项目根目录分组，同一项目的 worktree 合并；全局项目下的无关目录分别分组。过滤子会话和已归档会话。
+- 会话列表沿 `cursor.next` 读取全部分页。分页期间收到的会话事件优先于旧页面数据；刷新完成前保留缓存中的旧页面，连接失败时保留已加载结果。
+- 当前项目置顶。项目及组内会话按最近更新时间建立初始顺序，本次打开期间冻结已有行的位置，后加载的新项追加；重新打开时重建顺序。
+- 非搜索视图按项目分批展示，额外保留当前会话；搜索时展示全部匹配项。展开状态、展示数量、筛选范围和非搜索滚动位置存入宿主全局 store。
+- 打开会话前重新读取会话详情，确认未归档后调用 `ctx.tabs.open`；观察实际路由切换成功后关闭弹窗，失败时保留列表并显示错误。
+- 请求使用取消信号。弹窗关闭时取消请求，移除事件订阅并清理计时器。
+- 分支信息来自宿主已有的 VCS 数据；没有分支时，仅显示与项目根目录不同的会话目录。
+- 运行状态基于会话信息和宿主已同步的请求；授权、表单列表可能尚未加载。服务器断开时隐藏实时状态。
+
+## UI 约束
+
+修改 `src/navigator.tsx` 和 `src/styles.css` 时：
+
+- 弹窗、输入框、按钮、图标和快捷键提示使用 `ctx.ui` 组件。列表继承宿主字体，颜色使用官方 `--v2-*` 变量。
+- 搜索框占满弹窗内容宽度。标题、搜索与筛选区、底部快捷键固定，仅列表内部滚动；小窗口保留弹窗外边距。
+- 项目和会话行的高亮铺满同一宽度。会话不显示前置图标，标题、错误提示和“显示更多”文字与项目名称左对齐。
+- 项目名只在项目标题显示。会话没有分支或不同目录时，省略副标题；项目和会话列表均不显示 Tooltip，入口按钮保留功能与快捷键提示。
+- 当前会话始终保持高亮，悬浮其他项目或会话时可同时高亮。选中与悬浮背景使用同一颜色，当前会话另有左侧竖线和标签。
+
+### 官方 UI 源码参考
+
+调整组件外观或宿主布局适配时，查阅以下源码。链接固定到已核验的快照，不是 OpenCode 2.2.5 的版本标签：
+
+<https://github.com/anomalyco/opencode/tree/ffe6fed58334d921f64a86a8d86128bff5a4b566>
+
+| 场景 | 源码路径 |
+| --- | --- |
+| 弹窗布局与标题 | `packages/ui/src/overlays/dialog/dialog.css` |
+| 列表文字排版 | `packages/app/src/shell/commands/dialog.css` |
+| 时间与状态文字 | `packages/app/src/shell/titlebar/inbox.tsx` |
+| `ctx.ui` 组件映射 | `packages/app/src/runtime/plugin/ui.tsx` |
+| header 插槽位置 | `packages/app/src/session/timeline/message-timeline.tsx` |
+| “摘要”入口排序 | `packages/gui-plugins/src/details/renderer.tsx` |
