@@ -11,6 +11,7 @@ import { createNavigatorData } from "./data";
 import {
   groupSessions,
   pathKey,
+  sessionActivityTime,
   type Entry,
   type ProjectGroup,
   type Snapshot,
@@ -86,12 +87,13 @@ export function Navigator(props: {
       .map((group) => ({
         ...group,
         entries: [...group.entries].sort(
-          (a, b) => b.session.time.updated - a.session.time.updated,
+          (a, b) => sessionActivityTime(b.session) - sessionActivityTime(a.session),
         ),
       }))
       .sort(
         (a, b) =>
-          b.entries[0].session.time.updated - a.entries[0].session.time.updated,
+          sessionActivityTime(b.entries[0].session) -
+          sessionActivityTime(a.entries[0].session),
       );
     if (!orderFrozen()) {
       projectOrder.clear();
@@ -680,10 +682,10 @@ export function Navigator(props: {
                                       </span>
                                       <time
                                         dateTime={new Date(
-                                          entry().session.time.updated,
+                                          sessionActivityTime(entry().session),
                                         ).toISOString()}
                                       >
-                                        {age(entry().session.time.updated)}
+                                        {age(sessionActivityTime(entry().session))}
                                       </time>
                                     </span>
                                   </button>

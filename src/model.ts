@@ -19,6 +19,14 @@ export type ProjectGroup = {
   entries: Entry[];
 };
 
+export function sessionActivityTime(session: SessionInfo) {
+  return Math.max(
+    session.time.busy ?? 0,
+    session.time.idle ?? 0,
+    session.time.created,
+  );
+}
+
 export function pathKey(path: string) {
   const normalized = path.replaceAll("\\", "/").replace(/\/+$/, "") || "/";
   return /^[a-z]:\//i.test(normalized) ? normalized.toLowerCase() : normalized;
