@@ -2,6 +2,11 @@
   "name": "opencode-project-sessions",
   "version": "0.1.0",
   "description": "A project-grouped session navigator for OpenCode Desktop.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saltfishpr/opencode-project-sessions.git"
+  },
   "type": "module",
   "packageManager": "pnpm@11.25.0",
   "exports": {

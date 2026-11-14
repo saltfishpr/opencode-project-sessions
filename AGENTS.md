@@ -1,18 +1,19 @@
-# 开发约定
+# AGENTS.md
 
-`README.md` 面向插件使用者，说明产品用途、安装和使用方式。本文件记录开发流程、集成边界和交互约束。
+`README.md` 面向使用者，记录功能、安装、快捷键和浏览交互。本文件记录开发流程、集成边界和实现约束。
 
 ## 开发与验证
 
-- 使用 pnpm 安装依赖。修改 `src/` 中的源码，运行 `pnpm run dev` 可监听构建；本地目录加载的插件在重新构建后自动重载。
-- 源码变更后运行 `pnpm run typecheck` 和 `pnpm run build`；确认两者成功，再检查 `git diff --check`。
+- 使用 pnpm 安装依赖。运行 `pnpm run dev` 监听 `src/` 变更并重新构建；本地目录加载的插件在重新构建后自动重载。
+- 源码变更后运行 `pnpm run typecheck` 和 `pnpm run build`。文档变更后核对描述与源码一致。
 - `dist/gui-experimental.cjs` 已纳入版本控制，供本地目录安装直接使用。通过构建更新产物，不直接编辑产物；提交源码时包含对应产物。
-- 文档变更后检查 `git diff --check`，核对描述与源码一致。未经用户要求，不新增单元测试。
+- 提交前检查 `git diff --check`。未经用户要求，不新增单元测试。
 
 ## OpenCode 集成
 
-当前依赖面向 OpenCode 2.2.5 的 experimental GUI plugin API。升级依赖或调整集成时，先核实目标版本的 API；官方文档入口为 <https://opencode.ai/v2/docs/build/plugins/gui>。
+当前依赖 OpenCode 2.2.5 的 experimental GUI plugin API。升级依赖或调整集成时，先核实目标版本的 API；官方文档入口为 <https://opencode.ai/v2/docs/build/plugins/gui>。
 
+- 插件 id 为 `opencode-project-sessions`，命令、快捷键和 store 都以它为前缀；GUI 入口不声明 id。
 - 插件只有 GUI 入口，不添加 server 入口或额外认证流程。查询使用 `ctx.servers.get(id).client`，复用 Desktop 已认证的连接。
 - 入口按钮注册在 `session.header`，排序值为 `30`，位于内置“摘要”的 `20` 之后；主页通过命令面板和快捷键访问。
 - 命令 ID 为 `opencode-project-sessions.open`。通过 `Command.bind` 提供默认快捷键，用户设置优先；Tooltip 通过 `ctx.keybinds.keybind` 读取生效值。
