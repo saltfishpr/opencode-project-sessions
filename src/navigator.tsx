@@ -27,6 +27,7 @@ export function Navigator(props: {
   const prefs = ctx.stores.navigation;
   const data = createNavigatorData(ctx, props.cache);
   const [query, setQuery] = createSignal("");
+  const [searchExpanded, setSearchExpanded] = createSignal<Record<string, boolean>>({});
   const [scope, setScope] = createSignal(prefs.value.scope);
   const [focused, setFocused] = createSignal("");
   const [orderFrozen, setOrderFrozen] = createSignal(false);
@@ -152,13 +153,18 @@ export function Navigator(props: {
     () => new Map(groups().map((group) => [group.key, group])),
   );
   const expanded = (key: string) =>
-    searching() || (prefs.value.expanded[key] ?? key === currentProject());
+    searching()
+      ? (searchExpanded()[key] ?? true)
+      : (prefs.value.expanded[key] ?? key === currentProject());
   const visible = (group: ProjectGroup) => {
     if (searching()) return group.entries;
     return group.entries.slice(0, prefs.value.limits[group.key] ?? 8);
   };
   const toggle = (key: string, value = !expanded(key)) => {
-    if (searching()) return;
+    if (searching()) {
+      setSearchExpanded((previous) => ({ ...previous, [key]: value }));
+      return;
+    }
     prefs.update((draft) => {
       draft.expanded[key] = value;
     });
@@ -215,6 +221,7 @@ export function Navigator(props: {
     beginBrowsing();
     rememberScroll();
     setQuery(value);
+    setSearchExpanded({});
     queueMicrotask(() => {
       if (!controller.signal.aborted)
         list.scrollTop = searching()
@@ -563,7 +570,6 @@ export function Navigator(props: {
                       <button
                         type="button"
                         class="ps-row ps-project"
-                        disabled={searching()}
                         data-nav={`project:${key}`}
                         data-kind="project"
                         data-group={key}
