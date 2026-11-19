@@ -7,6 +7,8 @@ import {
   Show,
 } from "solid-js";
 import type { NavigatorContext } from "./definition";
+import { Project } from "./components/Project";
+import { Session, type SessionAction } from "./components/Session";
 import { createNavigatorData } from "./data";
 import {
   groupSessions,
@@ -36,8 +38,14 @@ export function Navigator(props: {
   const [opening, setOpening] = createSignal<string>();
   const [changing, setChanging] = createSignal<{
     key: string;
-    action: "archive" | "delete" | "remove";
+    action: SessionAction | "remove";
   }>();
+  const actionsDisabled = () => !!opening() || !!changing();
+  const remoteActionsDisabled = (id: string) => {
+    if (actionsDisabled()) return true;
+    const server = ctx.servers.get(id);
+    return !server?.connected || !server.compatible;
+  };
   const [navigating, setNavigating] = createSignal<Entry>();
   const [error, setError] = createSignal<{ key: string; message: string }>();
   const [now, setNow] = createSignal(Date.now());
@@ -343,7 +351,7 @@ export function Navigator(props: {
     }
   };
 
-  const changeSession = async (entry: Entry, action: "archive" | "delete") => {
+  const changeSession = async (entry: Entry, action: SessionAction) => {
     if (opening() || changing()) return;
     setChanging({ key: entry.key, action });
     setError(undefined);
@@ -664,251 +672,61 @@ export function Navigator(props: {
               {(key) => {
                 const group = () => byKey().get(key)!;
                 return (
-                  <section class="ps-group" aria-label={group().name}>
-                    <div
-                      class="ps-project-row"
-                      data-changing={
-                        opening() === key || changing()?.key === key || undefined
-                      }
-                    >
-                      <button
-                        type="button"
-                        class="ps-row ps-project"
-                        data-nav={`project:${key}`}
-                        data-kind="project"
-                        data-group={key}
-                        tabIndex={
-                          focused() === `project:${key}` ||
-                          (!focused() && key === groups()[0]?.key)
-                            ? 0
-                            : -1
-                        }
-                        aria-expanded={
-                          group().entries.length ? expanded(key) : undefined
-                        }
-                        onClick={() => {
-                          if (group().entries.length) toggle(key);
-                        }}
-                      >
-                        <ui.Icon
-                          class={
-                            group().entries.length ? undefined : "ps-no-sessions"
-                          }
-                          name={
-                            expanded(key) ? "chevron-down" : "chevron-right"
-                          }
-                        />
-                        <ui.Icon name="folder" />
-                        <span class="ps-copy">
-                          <span class="ps-title">{group().name}</span>
-                          <span class="ps-description" dir="auto">
-                            {group().directory}
-                          </span>
-                        </span>
-                        <span class="ps-project-meta">
-                          <Show
-                            when={
-                              ctx.servers.list().length > 1 ||
-                              !ctx.servers.get(group().server)
-                            }
-                          >
-                            <span class="ps-server">
-                              {ctx.servers.get(group().server)?.name ??
-                                group().server}
-                            </span>
-                          </Show>
-                          <Show when={group().entries.length}>
-                            <span class="ps-count">
-                              {group().entries.length}
-                            </span>
-                          </Show>
-                        </span>
-                      </button>
-                      <div class="ps-project-actions">
-                        <Show
-                          when={effectiveScope() === "removed"}
-                          fallback={
-                            <>
-                              <ui.IconButton
-                                icon="new-session"
-                                label={ctx.t("create")}
-                                variant="ghost-muted"
-                                busy={opening() === key}
-                                disabled={
-                                  !!opening() ||
-                                  !!changing() ||
-                                  !ctx.servers.get(group().server)?.connected ||
-                                  !ctx.servers.get(group().server)?.compatible
-                                }
-                                onClick={() => void open(group())}
-                              />
-                              <ui.IconButton
-                                icon="trash"
-                                label={ctx.t("removeProject")}
-                                variant="ghost-muted"
-                                busy={changing()?.key === key}
-                                disabled={!!opening() || !!changing()}
-                                onClick={() => void removeProject(group())}
-                              />
-                            </>
-                          }
-                        >
-                          <ui.IconButton
-                            icon="arrow-undo-down"
-                            label={ctx.t("restore")}
-                            variant="ghost-muted"
-                            disabled={!!opening() || !!changing()}
-                            onClick={() => restoreProject(group())}
-                          />
-                        </Show>
-                      </div>
-                    </div>
-                    <Show when={group().entries.length && expanded(key)}>
-                      <div class="ps-sessions">
-                        <For each={visible(group()).map((entry) => entry.key)}>
-                          {(entryKey) => {
-                            const entry = () =>
-                              group().entries.find(
-                                (item) => item.key === entryKey,
-                              )!;
-                            return (
-                              <div class="ps-entry">
-                                <div
-                                  class="ps-session-row"
-                                  data-changing={
-                                    changing()?.key === entryKey || undefined
-                                  }
-                                >
-                                  <button
-                                    type="button"
-                                    class="ps-row ps-session"
-                                    data-current={
-                                      entryKey === currentKey() || undefined
-                                    }
-                                    data-nav={entryKey}
-                                    data-kind="session"
-                                    data-group={key}
-                                    data-session-key={entryKey}
-                                    tabIndex={focused() === entryKey ? 0 : -1}
-                                    aria-current={
-                                      entryKey === currentKey()
-                                        ? "page"
-                                        : undefined
-                                    }
-                                    aria-busy={opening() === entryKey}
-                                    onClick={() => void open(entry())}
-                                  >
-                                    <span class="ps-copy">
-                                      <span class="ps-title" dir="auto">
-                                        {entry().session.title ||
-                                          ctx.t("untitled")}
-                                      </span>
-                                      <Show when={metadata(entry(), group())}>
-                                        {(value) => (
-                                          <span class="ps-description" dir="auto">
-                                            {value()}
-                                          </span>
-                                        )}
-                                      </Show>
-                                    </span>
-                                    <span class="ps-meta">
-                                      <Show when={opening() === entryKey}>
-                                        <ui.Loader size="small" />
-                                      </Show>
-                                      <span class="ps-labels">
-                                        <Show when={status(entry())}>
-                                          {(value) => (
-                                            <span
-                                              class="ps-status"
-                                              data-status={value()}
-                                            >
-                                              <span class="ps-dot" />
-                                              {ctx.t(value())}
-                                            </span>
-                                          )}
-                                        </Show>
-                                      </span>
-                                      <time
-                                        dateTime={new Date(
-                                          sessionActivityTime(entry().session),
-                                        ).toISOString()}
-                                      >
-                                        {age(sessionActivityTime(entry().session))}
-                                      </time>
-                                    </span>
-                                  </button>
-                                  <div class="ps-session-actions">
-                                    <For each={["archive", "delete"] as const}>
-                                      {(action) => (
-                                        <ui.IconButton
-                                          icon={
-                                            action === "archive"
-                                              ? "archive"
-                                              : "trash"
-                                          }
-                                          label={ctx.t(action)}
-                                          variant="ghost-muted"
-                                          busy={
-                                            changing()?.key === entryKey &&
-                                            changing()?.action === action
-                                          }
-                                          disabled={
-                                            !!opening() ||
-                                            !!changing() ||
-                                            !ctx.servers.get(entry().server)
-                                              ?.connected ||
-                                            !ctx.servers.get(entry().server)
-                                              ?.compatible
-                                          }
-                                          onClick={() =>
-                                            void changeSession(entry(), action)
-                                          }
-                                        />
-                                      )}
-                                    </For>
-                                  </div>
-                                </div>
-                                <Show when={error()?.key === entryKey}>
-                                  <div
-                                    class="ps-error ps-row-error"
-                                    role="alert"
-                                  >
-                                    {error()?.message}
-                                  </div>
-                                </Show>
-                              </div>
-                            );
-                          }}
-                        </For>
-                        <Show
-                          when={
-                            visible(group()).length < group().entries.length
-                          }
-                        >
-                          <button
-                            type="button"
-                            class="ps-row ps-more"
-                            data-nav={`more:${key}`}
-                            data-kind="more"
-                            data-group={key}
-                            tabIndex={focused() === `more:${key}` ? 0 : -1}
-                            onClick={() =>
-                              prefs.update((draft) => {
-                                draft.limits[key] =
-                                  (draft.limits[key] ?? 8) + 8;
-                              })
-                            }
-                          >
-                            {ctx.t("more", {
-                              count:
-                                group().entries.length -
-                                visible(group()).length,
-                            })}
-                          </button>
-                        </Show>
-                      </div>
-                    </Show>
-                  </section>
+                  <Project
+                    ctx={ctx}
+                    group={group()}
+                    visible={visible(group())}
+                    removed={effectiveScope() === "removed"}
+                    expanded={expanded(key)}
+                    focused={focused()}
+                    first={key === groups()[0]?.key}
+                    serverName={(() => {
+                      const id = group().server;
+                      const server = ctx.servers.get(id);
+                      if (ctx.servers.list().length > 1 || !server)
+                        return server?.name ?? id;
+                    })()}
+                    creating={opening() === key}
+                    removing={changing()?.key === key}
+                    actionsDisabled={actionsDisabled()}
+                    createDisabled={remoteActionsDisabled(group().server)}
+                    onToggle={() => toggle(key)}
+                    onCreate={() => void open(group())}
+                    onRemove={() => void removeProject(group())}
+                    onRestore={() => restoreProject(group())}
+                    onMore={() =>
+                      prefs.update((draft) => {
+                        draft.limits[key] = (draft.limits[key] ?? 8) + 8;
+                      })
+                    }
+                    renderSession={(entry, entryKey) => (
+                      <Session
+                        ctx={ctx}
+                        entryKey={entryKey}
+                        projectKey={key}
+                        title={entry().session.title}
+                        description={metadata(entry(), group())}
+                        current={entryKey === currentKey()}
+                        tabbable={focused() === entryKey}
+                        opening={opening() === entryKey}
+                        changing={(() => {
+                          const change = changing();
+                          if (
+                            change?.key === entryKey &&
+                            change.action !== "remove"
+                          )
+                            return change.action;
+                        })()}
+                        actionsDisabled={remoteActionsDisabled(entry().server)}
+                        status={status(entry())}
+                        activityTime={sessionActivityTime(entry().session)}
+                        formatAge={age}
+                        error={error()?.key === entryKey ? error()?.message : undefined}
+                        onOpen={() => void open(entry())}
+                        onChange={(action) => void changeSession(entry(), action)}
+                      />
+                    )}
+                  />
                 );
               }}
             </For>
