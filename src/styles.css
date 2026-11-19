@@ -4,6 +4,18 @@
   height: min(calc(100vh - 96px), 720px);
 }
 
+/* The native confirmation has no size option and mounts in the next portal. */
+:has(> [data-dialog-layer] .ps-navigator[data-confirming])
+  + *
+  > [data-dialog-layer]
+  > [data-component="dialog-v2"][data-fit][data-size="normal"]
+  > [data-slot="dialog-container"]:has(
+    > [data-slot="dialog-content"] > [data-slot="dialog-footer"]
+      > [data-component="button-v2"][data-variant="danger"]
+  ) {
+  width: min(calc(100vw - 32px), 320px);
+}
+
 [data-slot="dialog-body"] > [data-scrollable]:has(> .ps-navigator) {
   display: flex;
   flex-direction: column;

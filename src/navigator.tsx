@@ -40,6 +40,7 @@ export function Navigator(props: {
     key: string;
     action: SessionAction | "remove";
   }>();
+  const [confirming, setConfirming] = createSignal(false);
   const actionsDisabled = () => !!opening() || !!changing();
   const remoteActionsDisabled = (id: string) => {
     if (actionsDisabled()) return true;
@@ -351,6 +352,15 @@ export function Navigator(props: {
     }
   };
 
+  const confirm = async (options: Parameters<typeof ctx.dialogs.confirm>[0]) => {
+    setConfirming(true);
+    try {
+      return await ctx.dialogs.confirm(options);
+    } finally {
+      setConfirming(false);
+    }
+  };
+
   const changeSession = async (entry: Entry, action: SessionAction) => {
     if (opening() || changing()) return;
     setChanging({ key: entry.key, action });
@@ -358,7 +368,7 @@ export function Navigator(props: {
     try {
       if (
         action === "delete" &&
-        !(await ctx.dialogs.confirm({
+        !(await confirm({
           title: ctx.t("deleteTitle"),
           description: ctx.t("deleteDescription", {
             title: entry.session.title || ctx.t("untitled"),
@@ -406,7 +416,7 @@ export function Navigator(props: {
     setError(undefined);
     try {
       if (
-        !(await ctx.dialogs.confirm({
+        !(await confirm({
           title: ctx.t("removeProjectTitle"),
           confirm: ctx.t("remove"),
           cancel: ctx.t("cancel"),
@@ -558,6 +568,7 @@ export function Navigator(props: {
     >
       <div
         class="ps-navigator"
+        data-confirming={confirming() || undefined}
         onPointerDown={beginBrowsing}
         onKeyDown={onKeyDown}
         onFocusIn={(event) => {
