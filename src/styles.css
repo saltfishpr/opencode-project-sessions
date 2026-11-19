@@ -131,30 +131,6 @@
   opacity: 1;
   pointer-events: auto;
 }
-.ps-project-row[data-removed] {
-  display: flex;
-  align-items: center;
-  border-radius: 6px;
-}
-.ps-project-row[data-removed]:is(:hover, :focus-within) {
-  background: var(--v2-overlay-simple-overlay-pressed);
-}
-.ps-project-row[data-removed] > .ps-project {
-  flex: 1;
-  min-width: 0;
-}
-.ps-project-row[data-removed] .ps-project-meta {
-  min-width: 0;
-  visibility: visible;
-}
-.ps-project-row[data-removed] > .ps-project-actions {
-  position: static;
-  flex-shrink: 0;
-  margin-inline-end: 8px;
-  transform: none;
-  opacity: 1;
-  pointer-events: auto;
-}
 .ps-no-sessions {
   visibility: hidden;
 }

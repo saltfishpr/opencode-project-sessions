@@ -667,7 +667,6 @@ export function Navigator(props: {
                   <section class="ps-group" aria-label={group().name}>
                     <div
                       class="ps-project-row"
-                      data-removed={effectiveScope() === "removed" || undefined}
                       data-changing={
                         opening() === key || changing()?.key === key || undefined
                       }
@@ -754,14 +753,13 @@ export function Navigator(props: {
                             </>
                           }
                         >
-                          <ui.Button
+                          <ui.IconButton
+                            icon="arrow-undo-down"
+                            label={ctx.t("restore")}
                             variant="ghost-muted"
-                            size="small"
                             disabled={!!opening() || !!changing()}
                             onClick={() => restoreProject(group())}
-                          >
-                            {ctx.t("restore")}
-                          </ui.Button>
+                          />
                         </Show>
                       </div>
                     </div>
