@@ -28,13 +28,15 @@ export function Navigator(props: {
   const data = createNavigatorData(ctx, props.cache);
   const [query, setQuery] = createSignal("");
   const [searchExpanded, setSearchExpanded] = createSignal<Record<string, boolean>>({});
-  const [scope, setScope] = createSignal(prefs.value.scope);
+  const [scope, setScope] = createSignal<"all" | "current" | "removed">(
+    prefs.value.scope,
+  );
   const [focused, setFocused] = createSignal("");
   const [orderFrozen, setOrderFrozen] = createSignal(false);
   const [opening, setOpening] = createSignal<string>();
   const [changing, setChanging] = createSignal<{
     key: string;
-    action: "archive" | "delete";
+    action: "archive" | "delete" | "remove";
   }>();
   const [navigating, setNavigating] = createSignal<Entry>();
   const [error, setError] = createSignal<{ key: string; message: string }>();
@@ -53,6 +55,11 @@ export function Navigator(props: {
   });
 
   const allGroups = createMemo(() => groupSessions(data.snapshots()));
+  const removedKeys = createMemo(() =>
+    Object.keys(ctx.stores.removedProjects.value).filter(
+      (key) => ctx.stores.removedProjects.value[key],
+    ),
+  );
   const currentKey = () => {
     const session = ctx.sessions.current();
     if (!session) return;
@@ -69,9 +76,10 @@ export function Navigator(props: {
     if (current)
       return `${current.server.id}\0${pathKey(current.listedProject?.worktree ?? current.directory)}`;
   });
-  const effectiveScope = () => (currentProject() ? scope() : "all");
+  const effectiveScope = () =>
+    scope() === "current" && !currentProject() ? "all" : scope();
   const scrollKey = () =>
-    effectiveScope() === "all" ? "all" : currentProject()!;
+    effectiveScope() === "current" ? currentProject()! : "all";
   const terms = createMemo(() =>
     query()
       .trim()
@@ -84,7 +92,25 @@ export function Navigator(props: {
   const projectOrder = new Map<string, number>();
   const sessionOrder = new Map<string, number>();
   const ordered = createMemo(() => {
-    const groups = allGroups()
+    const available = new Map(allGroups().map((group) => [group.key, group]));
+    // Removed records must remain recoverable without a server or session cache.
+    for (const key of removedKeys()) {
+      if (available.has(key)) continue;
+      const separator = key.indexOf("\0");
+      const server = key.slice(0, separator);
+      const directory = key.slice(separator + 1);
+      const project = data.snapshots()[server]?.projects.find(
+        (item) => pathKey(item.canonical) === directory,
+      );
+      available.set(key, {
+        key,
+        server,
+        directory,
+        name: project?.name || directory.split("/").at(-1) || directory,
+        entries: [],
+      });
+    }
+    const groups = [...available.values()]
       .map((group) => ({
         ...group,
         entries: [...group.entries].sort(
@@ -93,8 +119,8 @@ export function Navigator(props: {
       }))
       .sort(
         (a, b) =>
-          sessionActivityTime(b.entries[0].session) -
-          sessionActivityTime(a.entries[0].session),
+          (b.entries[0] ? sessionActivityTime(b.entries[0].session) : 0) -
+          (a.entries[0] ? sessionActivityTime(a.entries[0].session) : 0),
       );
     if (!orderFrozen()) {
       projectOrder.clear();
@@ -133,12 +159,19 @@ export function Navigator(props: {
   });
   const groups = createMemo(() =>
     ordered().flatMap((group) => {
+      if (
+        !!ctx.stores.removedProjects.value[group.key] !==
+        (effectiveScope() === "removed")
+      )
+        return [];
       if (effectiveScope() === "current" && group.key !== currentProject())
         return [];
       if (!searching()) return [group];
       const projectText = `${group.name} ${group.directory}`.toLocaleLowerCase(
         ctx.locale.locale(),
       );
+      if (!group.entries.length)
+        return terms().every((term) => projectText.includes(term)) ? [group] : [];
       const entries = group.entries.filter((entry) => {
         const text =
           `${projectText} ${entry.session.title ?? ""} ${entry.session.location.directory}`.toLocaleLowerCase(
@@ -170,7 +203,7 @@ export function Navigator(props: {
     });
   };
   const rememberScroll = () => {
-    if (searching() || !restored) return;
+    if (searching() || !restored || effectiveScope() === "removed") return;
     prefs.update((draft) => {
       draft.scroll[scrollKey()] = list.scrollTop;
     });
@@ -224,20 +257,27 @@ export function Navigator(props: {
     setSearchExpanded({});
     queueMicrotask(() => {
       if (!controller.signal.aborted)
-        list.scrollTop = searching()
+        list.scrollTop = searching() || effectiveScope() === "removed"
           ? 0
           : (prefs.value.scroll[scrollKey()] ?? 0);
     });
   };
-  const changeScope = (value: "all" | "current") => {
+  const changeScope = (value: "all" | "current" | "removed") => {
     beginBrowsing();
     rememberScroll();
     setScope(value);
-    prefs.update((draft) => {
-      draft.scope = value;
-    });
+    setSearchExpanded({});
+    if (value !== "removed")
+      prefs.update((draft) => {
+        draft.scope = value;
+      });
     list.scrollTop = 0;
   };
+  createEffect(() => {
+    if (scope() !== "removed" || removedKeys().length) return;
+    changeScope("all");
+    changeQuery("");
+  });
   createEffect(() => {
     const target = navigating();
     const current = ctx.sessions.current();
@@ -349,6 +389,54 @@ export function Navigator(props: {
         });
     } finally {
       if (!controller.signal.aborted) setChanging(undefined);
+    }
+  };
+
+  const removeProject = async (group: ProjectGroup) => {
+    if (opening() || changing()) return;
+    setChanging({ key: group.key, action: "remove" });
+    setError(undefined);
+    try {
+      if (
+        !(await ctx.dialogs.confirm({
+          title: ctx.t("removeProjectTitle"),
+          confirm: ctx.t("remove"),
+          cancel: ctx.t("cancel"),
+          danger: true,
+        })) ||
+        controller.signal.aborted
+      )
+        return;
+      ctx.stores.removedProjects.update((draft) => {
+        draft[group.key] = true;
+      });
+    } catch {
+      if (!controller.signal.aborted)
+        setError({ key: group.key, message: ctx.t("removeProjectFailed") });
+    } finally {
+      if (!controller.signal.aborted) setChanging(undefined);
+    }
+  };
+
+  const restoreProject = (group: ProjectGroup) => {
+    if (opening() || changing()) return;
+    setError(undefined);
+    const index = groups().findIndex((item) => item.key === group.key);
+    try {
+      ctx.stores.removedProjects.update((draft) => {
+        delete draft[group.key];
+      });
+      queueMicrotask(() => {
+        if (controller.signal.aborted) return;
+        const buttons = [
+          ...list.querySelectorAll<HTMLButtonElement>("[data-kind='project']"),
+        ];
+        const next = buttons[Math.min(index, buttons.length - 1)];
+        if (next) next.focus({ preventScroll: true });
+        else list.parentElement?.querySelector<HTMLInputElement>("input")?.focus();
+      });
+    } catch {
+      setError({ key: group.key, message: ctx.t("restoreProjectFailed") });
     }
   };
 
@@ -501,6 +589,16 @@ export function Navigator(props: {
               >
                 {ctx.t("currentProject")}
               </button>
+              <Show when={removedKeys().length}>
+                <button
+                  type="button"
+                  class="ps-scope"
+                  aria-pressed={effectiveScope() === "removed"}
+                  onClick={() => changeScope("removed")}
+                >
+                  {ctx.t("removed")}
+                </button>
+              </Show>
             </div>
           </div>
           <Show when={data.failed()}>
@@ -540,7 +638,11 @@ export function Navigator(props: {
           onScroll={rememberScroll}
         >
           <Show
-            when={allGroups().length || !data.loading()}
+            when={
+              allGroups().length ||
+              effectiveScope() === "removed" ||
+              !data.loading()
+            }
             fallback={
               <div
                 class="ps-skeleton"
@@ -565,7 +667,10 @@ export function Navigator(props: {
                   <section class="ps-group" aria-label={group().name}>
                     <div
                       class="ps-project-row"
-                      data-creating={opening() === key || undefined}
+                      data-removed={effectiveScope() === "removed" || undefined}
+                      data-changing={
+                        opening() === key || changing()?.key === key || undefined
+                      }
                     >
                       <button
                         type="button"
@@ -579,10 +684,17 @@ export function Navigator(props: {
                             ? 0
                             : -1
                         }
-                        aria-expanded={expanded(key)}
-                        onClick={() => toggle(key)}
+                        aria-expanded={
+                          group().entries.length ? expanded(key) : undefined
+                        }
+                        onClick={() => {
+                          if (group().entries.length) toggle(key);
+                        }}
                       >
                         <ui.Icon
+                          class={
+                            group().entries.length ? undefined : "ps-no-sessions"
+                          }
                           name={
                             expanded(key) ? "chevron-down" : "chevron-right"
                           }
@@ -595,33 +707,65 @@ export function Navigator(props: {
                           </span>
                         </span>
                         <span class="ps-project-meta">
-                          <Show when={ctx.servers.list().length > 1}>
+                          <Show
+                            when={
+                              ctx.servers.list().length > 1 ||
+                              !ctx.servers.get(group().server)
+                            }
+                          >
                             <span class="ps-server">
                               {ctx.servers.get(group().server)?.name ??
                                 group().server}
                             </span>
                           </Show>
-                          <span class="ps-count">
-                            {group().entries.length}
-                          </span>
+                          <Show when={group().entries.length}>
+                            <span class="ps-count">
+                              {group().entries.length}
+                            </span>
+                          </Show>
                         </span>
                       </button>
-                      <ui.IconButton
-                        class="ps-create"
-                        icon="new-session"
-                        label={ctx.t("create")}
-                        variant="ghost-muted"
-                        busy={opening() === key}
-                        disabled={
-                          !!opening() ||
-                          !!changing() ||
-                          !ctx.servers.get(group().server)?.connected ||
-                          !ctx.servers.get(group().server)?.compatible
-                        }
-                        onClick={() => void open(group())}
-                      />
+                      <div class="ps-project-actions">
+                        <Show
+                          when={effectiveScope() === "removed"}
+                          fallback={
+                            <>
+                              <ui.IconButton
+                                icon="new-session"
+                                label={ctx.t("create")}
+                                variant="ghost-muted"
+                                busy={opening() === key}
+                                disabled={
+                                  !!opening() ||
+                                  !!changing() ||
+                                  !ctx.servers.get(group().server)?.connected ||
+                                  !ctx.servers.get(group().server)?.compatible
+                                }
+                                onClick={() => void open(group())}
+                              />
+                              <ui.IconButton
+                                icon="trash"
+                                label={ctx.t("removeProject")}
+                                variant="ghost-muted"
+                                busy={changing()?.key === key}
+                                disabled={!!opening() || !!changing()}
+                                onClick={() => void removeProject(group())}
+                              />
+                            </>
+                          }
+                        >
+                          <ui.Button
+                            variant="ghost-muted"
+                            size="small"
+                            disabled={!!opening() || !!changing()}
+                            onClick={() => restoreProject(group())}
+                          >
+                            {ctx.t("restore")}
+                          </ui.Button>
+                        </Show>
+                      </div>
                     </div>
-                    <Show when={expanded(key)}>
+                    <Show when={group().entries.length && expanded(key)}>
                       <div class="ps-sessions">
                         <For each={visible(group()).map((entry) => entry.key)}>
                           {(entryKey) => {

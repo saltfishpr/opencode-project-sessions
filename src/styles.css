@@ -107,26 +107,56 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: flex-end;
-  min-width: 24px;
+  min-width: 60px;
   gap: 8px;
 }
-.ps-project-row > .ps-create {
+.ps-project-actions {
   position: absolute;
   inset-inline-end: 8px;
   top: 50%;
   transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
   opacity: 0;
   pointer-events: none;
 }
-.ps-project-row:is(:hover, :focus-within, [data-creating]) > .ps-project {
+.ps-project-row:is(:hover, :focus-within, [data-changing]) > .ps-project {
   background: var(--v2-overlay-simple-overlay-pressed);
 }
-.ps-project-row:is(:hover, :focus-within, [data-creating]) .ps-project-meta {
+.ps-project-row:is(:hover, :focus-within, [data-changing]) .ps-project-meta {
   visibility: hidden;
 }
-.ps-project-row:is(:hover, :focus-within, [data-creating]) > .ps-create {
+.ps-project-row:is(:hover, :focus-within, [data-changing]) > .ps-project-actions {
   opacity: 1;
   pointer-events: auto;
+}
+.ps-project-row[data-removed] {
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+}
+.ps-project-row[data-removed]:is(:hover, :focus-within) {
+  background: var(--v2-overlay-simple-overlay-pressed);
+}
+.ps-project-row[data-removed] > .ps-project {
+  flex: 1;
+  min-width: 0;
+}
+.ps-project-row[data-removed] .ps-project-meta {
+  min-width: 0;
+  visibility: visible;
+}
+.ps-project-row[data-removed] > .ps-project-actions {
+  position: static;
+  flex-shrink: 0;
+  margin-inline-end: 8px;
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+.ps-no-sessions {
+  visibility: hidden;
 }
 .ps-project:disabled {
   cursor: default;
